@@ -15,8 +15,16 @@ class Task(BaseModel):
     title: str
 
 tasks = [
-    {"id": 1, "title": "Study for midterm"},
-    {"id": 2, "title": "Finish assignment"},
+    {
+        "id": 1,
+        "title": "Study for midterm",
+        "completed": False
+    },
+    {
+        "id": 2,
+        "title": "Finish assignment",
+        "completed": False
+    },
 ]
 
 @app.get("/")
@@ -31,10 +39,20 @@ def get_tasks():
 def add_task(task: Task):
     new_task = {
         "id": len(tasks) + 1,
-        "title": task.title
+        "title": task.title,
+        "completed": False
     }
     tasks.append(new_task)
     return new_task
+
+@app.put("/tasks/{task_id}/complete")
+def complete_task(task_id: int):
+    for task in tasks:
+        if task["id"] == task_id:
+            task["completed"] = True
+            return task
+
+    return {"message": "Task not found"}
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
