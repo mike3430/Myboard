@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from database import get_connection
 
 app = FastAPI()
 
@@ -14,51 +15,76 @@ app.add_middleware(
 class Task(BaseModel):
     title: str
 
-tasks = [
-    {
-        "id": 1,
-        "title": "Study for midterm",
-        "completed": False
-    },
-    {
-        "id": 2,
-        "title": "Finish assignment",
-        "completed": False
-    },
-]
-
 @app.get("/")
 def home():
     return {"message": "Teamboard API is running"}
 
 @app.get("/tasks")
 def get_tasks():
-    return tasks
+    connection = get_connection()
+
+    rows = connection.execute(
+        "SELECT id, title, completed FROM tasks"
+    ).fetchall()
+
+    connection.close()
+
+    return [dict(row) for row in rows]
 
 @app.post("/tasks")
 def add_task(task: Task):
+    connection = get_connection()
+
+    cursor = connection.execute(
+        "INSERT INTO tasks (title, completed) VALUES (?, ?)",
+        (task.title, 0)
+    )
+
+    connection.commit()
+
     new_task = {
-        "id": len(tasks) + 1,
+        "id": cursor.lastrowid,
         "title": task.title,
         "completed": False
     }
-    tasks.append(new_task)
+
+    connection.close()
+
     return new_task
 
 @app.put("/tasks/{task_id}/complete")
 def complete_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            task["completed"] = True
-            return task
+    connection = get_connection()
 
-    return {"message": "Task not found"}
+    connection.execute(
+        "UPDATE tasks SET completed = 1 WHERE id = ?",
+        (task_id,)
+    )
+
+    connection.commit()
+
+    row = connection.execute(
+        "SELECT id, title, completed FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        return {"message": "Task not found"}
+
+    return dict(row)
 
 @app.delete("/tasks/{task_id}")
 def delete_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            tasks.remove(task)
-            return {"message": "Task deleted"}
+    connection = get_connection()
 
-    return {"message": "Task not found"}
+    connection.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+
+    connection.commit()
+    connection.close()
+
+    return {"message": "Task deleted"}

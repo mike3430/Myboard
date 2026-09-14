@@ -36,6 +36,20 @@ function deleteTask(id) {
     });
 }
 
+function completeTask(id) {
+  fetch(`http://127.0.0.1:8000/tasks/${id}/complete`, {
+    method: "PUT"
+  })
+    .then(response => response.json())
+    .then(updatedTask => {
+      setTasks(
+        tasks.map(task =>
+          task.id === id ? updatedTask : task
+        )
+      );
+    });
+}
+
   return (
     <div>
       <h1>Teamboard</h1>
@@ -53,7 +67,18 @@ function deleteTask(id) {
 
       {tasks.map(task => (
         <div key={task.id}>
-          <span>{task.title}</span>
+          <span
+            style={{
+              textDecoration: task.completed ? "line-through" : "none"
+            }}
+          >
+            {task.title}
+          </span>
+
+          <button onClick={() => completeTask(task.id)}>
+            Complete
+          </button>
+
           <button onClick={() => deleteTask(task.id)}>
             Delete
           </button>
