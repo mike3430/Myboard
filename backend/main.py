@@ -14,6 +14,11 @@ app.add_middleware(
 #when someone sends a tasks it will have a title:
 class Task(BaseModel):
     title: str
+    category: str
+    due_date: str
+
+class TaskUpdate(BaseModel):
+    title: str
 
 @app.get("/")
 def home():
@@ -24,7 +29,7 @@ def get_tasks():
     connection = get_connection()
 
     rows = connection.execute(
-        "SELECT id, title, completed FROM tasks"
+        "SELECT id, title, completed, category FROM tasks"
     ).fetchall()
 
     connection.close()
@@ -36,8 +41,8 @@ def add_task(task: Task):
     connection = get_connection()
 
     cursor = connection.execute(
-        "INSERT INTO tasks (title, completed) VALUES (?, ?)",
-        (task.title, 0)
+        "INSERT INTO tasks (title, completed, category, due_date) VALUES (?, ?, ?, ?)",
+        (task.title, 0, task.category, task.due_date)
     )
 
     connection.commit()
@@ -45,12 +50,37 @@ def add_task(task: Task):
     new_task = {
         "id": cursor.lastrowid,
         "title": task.title,
-        "completed": False
+        "completed": False,
+        "category": task.category,
+        "due_date": task.due_date
     }
 
     connection.close()
 
     return new_task
+
+@app.put("/tasks/{task_id}/undo")
+def undo_complete(task_id: int):
+    connection = get_connection()
+
+    connection.execute(
+        "UPDATE tasks SET completed = 0 WHERE id = ?",
+        (task_id,)
+    )
+
+    connection.commit()
+
+    row = connection.execute(
+        "SELECT id, title, completed, category, due_date FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        return {"message": "Task not found"}
+
+    return dict(row)
 
 @app.put("/tasks/{task_id}/complete")
 def complete_task(task_id: int):
@@ -64,7 +94,30 @@ def complete_task(task_id: int):
     connection.commit()
 
     row = connection.execute(
-        "SELECT id, title, completed FROM tasks WHERE id = ?",
+        "SELECT id, title, completed, category, due_date FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        return {"message": "Task not found"}
+
+    return dict(row)
+
+@app.put("/tasks/{task_id}")
+def edit_task(task_id: int, updated_task: TaskUpdate):
+    connection = get_connection()
+
+    connection.execute(
+        "UPDATE tasks SET title = ? WHERE id = ?",
+        (updated_task.title, task_id)
+    )
+
+    connection.commit()
+
+    row = connection.execute(
+        "SELECT id, title, completed, category, due_date FROM tasks WHERE id = ?",
         (task_id,)
     ).fetchone()
 
