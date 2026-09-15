@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 function App() {
   const [tasks, setTasks] = useState([]);
   const [newTask, setNewTask] = useState("");
+  const todoTasks = tasks.filter(task => !task.completed);
+  const completedTasks = tasks.filter(task => task.completed);
 
   useEffect(() => {
     fetch("http://127.0.0.1:8000/tasks")
@@ -50,9 +52,35 @@ function completeTask(id) {
     });
 }
 
+function editTask(id, currentTitle) {
+  const newTitle = prompt("Enter a new task title:", currentTitle);
+
+  if (newTitle === null || newTitle.trim() === "") {
+    return;
+  }
+
+  fetch(`http://127.0.0.1:8000/tasks/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      title: newTitle
+    })
+  })
+    .then(response => response.json())
+    .then(updatedTask => {
+      setTasks(
+        tasks.map(task =>
+          task.id === id ? updatedTask : task
+        )
+      );
+    });
+}
+
   return (
     <div>
-      <h1>Teamboard</h1>
+      <h1>Myboard</h1>
 
       <input
         type="text"
@@ -64,19 +92,41 @@ function completeTask(id) {
       <button onClick={addTask}>
         Add Task
       </button>
+      
+      <h2>To Do</h2>
 
-      {tasks.map(task => (
+      {todoTasks.map(task => (
+        <div key={task.id}>
+          <span>{task.title}</span>
+
+          <button onClick={() => completeTask(task.id)}>
+            Complete
+          </button>
+
+          <button onClick={() => editTask(task.id, task.title)}>
+            Edit
+          </button>
+
+          <button onClick={() => deleteTask(task.id)}>
+            Delete
+          </button>
+        </div>
+      ))}
+
+      <h2>Completed</h2>
+
+      {completedTasks.map(task => (
         <div key={task.id}>
           <span
             style={{
-              textDecoration: task.completed ? "line-through" : "none"
+              textDecoration: "line-through"
             }}
           >
             {task.title}
           </span>
 
-          <button onClick={() => completeTask(task.id)}>
-            Complete
+          <button onClick={() => editTask(task.id, task.title)}>
+            Edit
           </button>
 
           <button onClick={() => deleteTask(task.id)}>
